@@ -10,186 +10,237 @@
  * @author     Anthony Budd
  */
 
-final class WP_Route{
+namespace samueltissot\WP_Route;
 
-	private $hooked = FALSE;
-	private $routes = array(
-		'ANY' 		=> array(),
-		'GET' 		=> array(),
-		'POST' 		=> array(),
-		'HEAD' 		=> array(),
-		'PUT' 		=> array(),
-		'DELETE' 	=> array(),
-	);
+final class WP_Route
+{
+    private static $instance = null;
+    private $hooked = false;
+    private $routes = array(
+        'ANY' 		=> array(),
+        'GET' 		=> array(),
+        'POST' 		=> array(),
+        'HEAD' 		=> array(),
+        'PUT' 		=> array(),
+        'DELETE' 	=> array(),
+    );
 
-    private function __construct(){}
+    // make sure no one intanciate it
+    private function __construct()
+    {
+    }
 
-	public static function instance(){
-        static $instance = NULL;
+    public static function instance()
+    {
 
-        if($instance === NULL){
-            $instance = new Self();
-            $instance->hook();
+        if (self::$instance === null) {
+            self::$instance = new Self();
+            self::$instance->hook();
         }
 
-        return $instance;
+        return self::$instance;
     }
 
 
     // -----------------------------------------------------
-	// CREATE ROUTE METHODS
-	// -----------------------------------------------------
-    public static function any($route, $callable){
-    	$r = Self::instance();
-    	$r->addRoute('ANY', $route, $callable);
+    // CREATE ROUTE METHODS
+    // -----------------------------------------------------
+    public static function any($route, $callable, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('ANY', $route, $callable, $matchParam);
     }
 
-    public static function get($route, $callable){
-    	$r = Self::instance();
-    	$r->addRoute('GET', $route, $callable);
+    public static function get($route, $callable, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('GET', $route, $callable, $matchParam);
     }
 
-    public static function post($route, $callable){
-    	$r = Self::instance();
-    	$r->addRoute('POST', $route, $callable);
+    public static function post($route, $callable, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('POST', $route, $callable, $matchParam);
     }
 
-    public static function head($route, $callable){
-    	$r = Self::instance();
-    	$r->addRoute('HEAD', $route, $callable);
+    public static function head($route, $callable, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('HEAD', $route, $callable, $matchParam);
     }
 
-    public static function put($route, $callable){
-    	$r = Self::instance();
-    	$r->addRoute('PUT', $route, $callable);
+    public static function put($route, $callable, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('PUT', $route, $callable, $matchParam);
     }
 
-    public static function delete($route, $callable){
-    	$r = Self::instance();
-    	$r->addRoute('DELETE', $route, $callable);
+    public static function delete($route, $callable, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('DELETE', $route, $callable, $matchParam);
     }
 
-    public static function match($methods, $route, $callable){
-    	if(!is_array($methods)){
-    		throw new Exception("\$methods must be an array");    		
-    	}
+    public static function match($methods, $route, $callable, $matchParam = false)
+    {
+        if (!is_array($methods)) {
+            throw new Exception("\$methods must be an array");
+        }
 
-    	$r = Self::instance();
-    	foreach($methods as $method){
-    		if(!in_array(strtoupper($method), array_keys($this->routes))){
-    			throw new Exception("Unknown method {$method}");
-    		}
-    		
-    		$r->addRoute(strtoupper($method), $route, $callable);
-    	}
+        $r = Self::instance();
+        foreach ($methods as $method) {
+            if (!in_array(strtoupper($method), array_keys($this->routes))) {
+                throw new Exception("Unknown method {$method}");
+            }
+
+            $r->addRoute(strtoupper($method), $route, $callable, $matchPara);
+        }
     }
 
-    public static function redirect($route, $redirect, $code = 301){
-    	$r = Self::instance();
-    	$r->addRoute('ANY', $route, $redirect, array(
-    		'code'     => $code,
-    		'redirect' => $redirect,
-    	));
+    public static function redirect($route, $redirect, $code = 301, $matchParam = false)
+    {
+        $r = Self::instance();
+        $r->addRoute('ANY', $route, $redirect, array(
+            'code'     => $code,
+            'redirect' => $redirect,
+            'matchParam' => $matchParam,
+        ));
     }
 
 
     // -----------------------------------------------------
-	// INTERNAL UTILITY METHODS
-	// -----------------------------------------------------
-    private function addRoute($method, $route, $callable, $options = array()){
-    	$this->routes[$method][] = (object) array_merge(array(
-    		'route' 	=>  ltrim($route, '/'),
-    		'callable'  =>  $callable,
-    	), $options);
+    // INTERNAL UTILITY METHODS
+    // -----------------------------------------------------
+    private function addRoute($method, $route, $callable, $matchParam = false)
+    {
+        $this->routes[$method][] = (object) [
+            'route' 	=>  ltrim($route, '/'),
+            'callable'  =>  $callable,
+            'matchParam' => $matchParam,
+        ];
     }
 
-    private function hook(){
-    	if(!$this->hooked){
-			add_filter('init', array('WP_Route', 'onInit'), 1, 0);
-			$this->hooked = TRUE;
-		}
+    private function hook()
+    {
+        if (!$this->hooked) {
+            add_filter('init', array(__CLASS__, 'onInit'), 1, 0);
+            $this->hooked = true;
+        }
     }
 
-    public static function onInit(){
-    	$r = Self::instance();
-    	$r->handle();
+    public static function onInit()
+    {
+        $r = Self::instance();
+        return $r->handle();
     }
 
-    private function getRouteParams($route){
-    	$tokenizedRoute		 = $this->tokenize($route);
-    	$tokenizedRequestURI = $this->tokenize($this->requestURI());
-    	preg_match_all('/\{\s*.+?\s*\}/', $route, $matches);
+    private function getPathVariables($route)
+    {
+        $tokenizedRoute		 = $this->tokenize($route);
+        $tokenizedRequestURI = $this->tokenize($this->requestURI());
+        preg_match_all('/\{\s*.+?\s*\}/', $route, $matches);
 
-    	$return = array();
-    	foreach($matches[0] as $key => $match){
-    		$search = array_search($match, $tokenizedRoute);
-    		if($search !== FALSE){
-    			$return[]  = $tokenizedRequestURI[$search];
-    		}
-    	}
-    	
-    	return $return;
+        $return = array();
+        foreach ($matches[0] as $key => $match) {
+            $search = array_search($match, $tokenizedRoute);
+            if ($search !== false) {
+                $n = preg_replace('/\{|\}/', "", $match);
+                $return[$n] = filter_var($tokenizedRequestURI[$search], FILTER_SANITIZE_SPECIAL_CHARS, ['flags' => FILTER_FLAG_STRIP_BACKTICK]);
+            }
+        }
+
+        return $return;
     }
 
 
     // -----------------------------------------------------
     // GENERAL UTILITY METHODS
     // -----------------------------------------------------
-    public static function routes(){
-    	$r = Self::instance();
-    	return $r->routes;
+    public static function routes()
+    {
+        $r = Self::instance();
+        return $r->routes;
     }
 
-    public function tokenize($url){
-    	return array_filter(explode('/', ltrim($url, '/')));
+    public function tokenize($url)
+    {
+        return array_filter(explode('/', ltrim($url, '/')));
     }
 
-    public function requestURI(){
-    	return ltrim($_SERVER['REQUEST_URI'], '/');
+
+    public function requestURI($withParam = false)
+    {
+	// TODO maybe add static vars here. but will need to null them with reflection for testing
+        $uri = ltrim($_SERVER["REQUEST_URI"], '/');
+
+        if ($withParam) {
+            return $uri;
+        }
+        
+	return parse_url($uri)['path'];
     }
 
-    // -----------------------------------------------------
-	// handle()
-	// -----------------------------------------------------
-    public function handle(){
-        $method              = strtoupper($_SERVER['REQUEST_METHOD']);
-        $routes              = array_merge($this->routes[$method], $this->routes['ANY']);  
-    	$requestURI 		 = $this->requestURI();
-    	$tokenizedRequestURI = $this->tokenize($requestURI);
+    public function getMethod()
+    {
+        return strtoupper($_SERVER['REQUEST_METHOD']);
+    }
 
-    	foreach($routes as $key => $route){
-    		// First, filter routes that do not have equal tokenized lengths
-    		if(count($this->tokenize($route->route)) !== count($tokenizedRequestURI)){
-    			unset($routes[$key]);
-    			continue;
-    		}
+    private function getRequest($route)
+    {
+        $params = array_map(
+            function ($value) {
+                return filter_var($value, FILTER_SANITIZE_STRING, ['flags' => FILTER_FLAG_STRIP_BACKTICK]);
+            },
+            $_GET
+        );
 
-    		// Add more filtering here as routing gets more complex.
-    	}
+        return new Request(
+            $this->getMethod(),
+            $this->requestURI(),
+            $params,
+            $this->getPathVariables($route)
+        );
+    }
 
-    	$routes = array_values($routes);
-    	if(isset($routes[0])){
-    		$route = $routes[0];
+    public function handle()
+    {
+        $method = $this->getMethod();
+        $routes = array_merge($this->routes[$method], $this->routes['ANY']);
 
-			if(is_string($route->callable) &&
-			   class_exists($route->callable) &&
-			   is_subclass_of($route->callable, 'WP_AJAX')){
+        foreach ($routes as $key => $route) {
+            $requestURI = $this->requestURI($route->matchParam);
+            $tokenizedRequestURI = $this->tokenize($requestURI);
+            if (count($this->tokenize($route->route)) !== count($tokenizedRequestURI)) {
+                unset($routes[$key]);
+                continue;
+            }
+        }
 
-				$callable   = $route->callable;
-				$controller = new $callable;
-				call_user_func_array(array($controller, 'boot'), $this->getRouteParams($route->route));
+        $routes = array_values($routes);
 
-			}elseif(isset($routes[0]->redirect)){
+        // return if no route found
+        if (!isset($routes[0])) {
+            return;
+        }
 
-				$redirect = $routes[0]->redirect;
-				header("Location: {$redirect}", TRUE, $routes[0]->code);
-				die;
+        // use the first match
+        $route = $routes[0];
 
-			}else{
+        if (isset($route->callable) && is_callable($route->callable)) {
+            return call_user_func($route->callable, $this->getRequest($route->route));
+        }
 
-				call_user_func_array($route->callable, $this->getRouteParams($route->route));
+        if (isset($routes->redirect)) {
+            $redirect = $routes[0]->redirect;
+            header("Location: {$redirect}", true, $routes[0]->code);
+            die(0);
+        }
 
-			}
-    	}
+        throw new \Exception("route not callable");
+    }
+
+    public function __destruct()
+    {
+        self::$instance = null;
     }
 }

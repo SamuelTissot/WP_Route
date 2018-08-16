@@ -1,13 +1,20 @@
 {
-    "name": "anthonybudd/wp_route",
+    "name": "samueltissot/wp_route",
     "type": "library",
+    "keywords": ["wordpress", "routing"],
     "authors": [
         {
-            "name": "Anthony Budd",
-            "email": "anthonybudd94@gmail.com"
+            "name": "Samuel Tissot",
+            "email": "tissotjobin@gmail.com"
         }
     ],
     "autoload": {
-        "files": ["src/WP_Route.php"]
+        "psr-4": {
+            "samueltissot\\WP_Route\\": "src/",
+            "samueltissot\\WP_Route_Test\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit" : "^7"
     }
 }
