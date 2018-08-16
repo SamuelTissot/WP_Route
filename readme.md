@@ -1,6 +1,8 @@
 WP_Route
 ====
 
+[![CircleCI](https://circleci.com/gh/SamuelTissot/WP_Route/tree/master.svg?style=svg)](https://circleci.com/gh/SamuelTissot/WP_Route/tree/master)
+
 This is a fork of [Anthony Budd's](https://github.com/anthonybudd) [WP_Route](https://github.com/anthonybudd/WP_Route)
 
 ### Added features 

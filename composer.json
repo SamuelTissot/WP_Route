@@ -8,6 +8,9 @@
             "email": "tissotjobin@gmail.com"
         }
     ],
+    "require": {
+        "php": "^7"
+    },
     "autoload": {
         "psr-4": {
             "samueltissot\\WP_Route\\": "src/",
