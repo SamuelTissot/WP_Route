@@ -2,6 +2,7 @@
     "name": "samueltissot/wp_route",
     "type": "library",
     "keywords": ["wordpress", "routing"],
+    "homepage": "https://github.com/SamuelTissot/WP_Route",
     "authors": [
         {
             "name": "Samuel Tissot",
@@ -9,7 +10,7 @@
         }
     ],
     "require": {
-        "php": "^7"
+        "php": ">=7.0"
     },
     "autoload": {
         "psr-4": {
