@@ -16,16 +16,25 @@ This is a fork of [Anthony Budd's](https://github.com/anthonybudd) [WP_Route](ht
 ### basic usage
 ```php
 
-WP_Route::get('flights',                        'listFlights');
-WP_Route::post('flights/{flight}',              'singleFlight');
-WP_Route::put('flights/{flight}/book/{date}',   'bookFlight');
-WP_Route::delete('flights/{flight}/delete',     'deleteFlight');
-
+WP_Route::get('/flights/', 'listFlights');
+WP_Route::get('/buses/', 'listBuses');
+WP_Route::post('/flights/{flight}/', 'singleFlight');
+WP_Route::put('/flights/{flight}/book/{date}', 'bookFlight');
+WP_Route::delete('/flights/{flight}/delete', 'deleteFlight');
 WP_Route::any('flights/{flight}',   array('Class', 'staticMethod'));
 WP_Route::patch('flights/{flight}', array($object, 'method'));
 WP_Route::match(['get', 'post'],    'flights/{flight}/confirm', 'confirmFlight');
-WP_Route::redirect('from/here',     '/to/here', 301);
 
+// if you want to take into account the parameters when doing a path match 
+WP_Route::get('/flights/', 'listFlights', true);
+
+// redirect
+WP_Route::redirect('open-google', 'https://google.com', 301);
+
+// close
+WP_Route::get('flights/{flight}', function singleFlight(RequestInterface $req) {
+    $req->pathVariable('flight');
+}
 
 ```
 
@@ -34,68 +43,65 @@ WP_Route::redirect('from/here',     '/to/here', 301);
 Require WP_Route with composer
 
 ```
-$ composer require samueltissot/WP_Route
+$ composer require samueltissot/wp_route
 ```
 
 
-# GET Started
-Simply define a route by calling any of the static methods get(), post(), put(), patch(), delete() or any(). This will bind the specified URL to a callable. When a HTTP request bound for that URL is detected, WP_Route will call the callable. 
+# All Callback must accept a variable of type `RequestInterface`
+a request oject is passed to the callable method
 
-```php
-WP_Route::get('flights', 'listFlights');
+**note:** it is in the plans to be able to provide your custom RequestInterface class (PR accepted)
 
-// http://example.com/flights
-function listFlights(){
-  
-   // Your Code Here!  
-  
-}
-```
-
-# Parameters
-If you need to extract route parameters from the request URI you can do this by wrapping the value to be extracted in curly brackets. The extracted values will be provided to the callable as function arguments as shown below.
-```php
-WP_Route::get('flights/{flight}', 'singleFlight');
-
-function singleFlight($flight){
-    echo $flight; // 1
-}
-```
-
-# Methods
-### get($route, $callable)
-### any(), post(), put(), patch(), delete()
-All of these methods are used for binding a specific route and HTTP request method to a callable. The method any() will bind a route to a callable but will be HTTP method agnostic.
+### examples
 ```php
 
-WP_Route::get('flights',           'listFlights');
-WP_Route::post('flights/{flight}', array('FlightController', 'singleFlight'));
+use samueltissot\WP_Route\RequestInterface;
 
-function listFlights(){
-	// Your Code Here
+// an invocable class
+class Controller
+{
+    public function __invoke(RequestInterface $req)
+    {
+        // code goes here;
+    }
 }
-  
-Class FlightController{
-	public static function singleFlight($flight){
-		// Your Code Here
-	}
+
+
+// or a simple function
+function my_super_func(RequestInterface $req) {
+    // code goes here;
 }
+
+// method inside class
+
+class MyAwesomeClass
+{
+    public function wow(RequestInterface $req)
+    {
+        // code goes here;
+    }
+}
+
 ```
 
-### match($methods, $route, $callable)
-If you want to bind a callable to multiple HTTP methods but you do not want to use any(), you can use match(). The first parameter must be an array of HTTP request methods. The arguments $route and $callable work the same as get().
+
+# The Request Object (RequestInterface)
+a small helper object that provide usefull data about the request
+
+### the Interface
 ```php
-WP_Route::match(['get', 'post'], 'flights/{flight}/confirm', 'confirmFlight');
+interface RequestInterface
+{
+    public function uri();
 
-function confirmFlight($flight){
-	// Your Code Here
+    public function method();
+
+    public function pathVariables();
+
+    public function pathVariable($name);
+
+    public function parameters();
+
+    public function parameter($name);
 }
 ```
-
-### redirect($route, $redirect, $code = 301)
-The redirect() method will redirect the user to the argument $redirect when they navigate to the route. To set a custom HTTP response code use the 3rd argument $code.
-```php
-WP_Route::redirect('open-google', 'https://google.com', 301);
-```
-
-
