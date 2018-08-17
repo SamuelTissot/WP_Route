@@ -14,6 +14,7 @@ namespace samueltissot\WP_Route;
 
 final class WP_Route
 {
+    const PATH_VAR_REGEX = '/\{\s*.+?\s*\}/';
     private static $instance = null;
     private $hooked = false;
     private $routes = array(
@@ -138,9 +139,9 @@ final class WP_Route
     {
         $tokenizedRoute		 = $this->tokenize($route);
         $tokenizedRequestURI = $this->tokenize($this->requestURI());
-        preg_match_all('/\{\s*.+?\s*\}/', $route, $matches);
+        preg_match_all(self::PATH_VAR_REGEX, $route, $matches);
 
-        $return = array();
+        $return = [];
         foreach ($matches[0] as $key => $match) {
             $search = array_search($match, $tokenizedRoute);
             if ($search !== false) {
@@ -202,29 +203,53 @@ final class WP_Route
         );
     }
 
+    private function isMatch(array $route, array $path)
+    {
+        $rc = count($route);
+        $rp = count($path);
+
+        // if not of same length it's not a match
+        if ($rc != $rp) return false;
+
+        // if both count 0 then it's a match
+        if ($rc == 0) return true;
+
+
+        // if it's a path variable then keep going
+        if (preg_match(self::PATH_VAR_REGEX, reset($route))) {
+            goto ctn;
+        }
+
+        // if the strings are not equal it's not a match
+        if (reset($route) != reset($path)) return false;
+
+
+        ctn:
+        array_shift($route);
+        array_shift($path);
+        return $this->isMatch($route, $path);
+    }
+
     public function handle()
     {
         $method = $this->getMethod();
         $routes = array_merge($this->routes[$method], $this->routes['ANY']);
 
-        foreach ($routes as $key => $route) {
-            $requestURI = $this->requestURI($route->matchParam);
-            $tokenizedRequestURI = $this->tokenize($requestURI);
-            if (count($this->tokenize($route->route)) !== count($tokenizedRequestURI)) {
-                unset($routes[$key]);
-                continue;
+        $route = [];
+        foreach ($routes as $r) {
+            $uri = $this->requestURI($r->matchParam);
+            $turi = $this->tokenize($uri);
+            $troute = $this->tokenize($r->route);
+            if ($this->isMatch($troute, $turi)) {
+               $route = $r;
+               break;
             }
         }
 
-        $routes = array_values($routes);
-
         // return if no route found
-        if (!isset($routes[0])) {
+        if (empty($route)) {
             return;
         }
-
-        // use the first match
-        $route = $routes[0];
 
         if (isset($route->callable) && is_callable($route->callable)) {
             return call_user_func($route->callable, $this->getRequest($route->route));

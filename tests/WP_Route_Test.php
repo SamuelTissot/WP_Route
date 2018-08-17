@@ -79,5 +79,26 @@ namespace {
             $result = \exec_filter();
             $this->assertEquals("bar", $result);
         }
+
+        /** @test */
+        public function must_select_the_correct_route()
+        {
+            $_SERVER["REQUEST_URI"] = "/correct/yeah/";
+            $_SERVER["REQUEST_METHOD"] = "get";
+
+            WP_Route::get("/bad/{foo}", function(RequestInterface $request) {
+                return "bad"; 
+            });
+            WP_Route::get("/correct/{foo}", function(RequestInterface $request) {
+                return $request->pathVariable("foo");
+            });
+
+            WP_Route::get("/notgood/{foo}", function(RequestInterface $request) {
+                return "not good at all";
+            });
+
+            $result = \exec_filter();
+            $this->assertEquals("yeah", $result);
+        }
     }
 }
