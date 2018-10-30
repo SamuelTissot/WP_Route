@@ -18,12 +18,12 @@ final class WP_Route
     private static $instance = null;
     private $hooked = false;
     private $routes = array(
-        'ANY' 		=> array(),
-        'GET' 		=> array(),
-        'POST' 		=> array(),
-        'HEAD' 		=> array(),
-        'PUT' 		=> array(),
-        'DELETE' 	=> array(),
+        'ANY' => array(),
+        'GET' => array(),
+        'POST' => array(),
+        'HEAD' => array(),
+        'PUT' => array(),
+        'DELETE' => array(),
     );
 
     // make sure no one intanciate it
@@ -102,7 +102,7 @@ final class WP_Route
     {
         $r = Self::instance();
         $r->addRoute('ANY', $route, $redirect, array(
-            'code'     => $code,
+            'code' => $code,
             'redirect' => $redirect,
             'matchParam' => $matchParam,
         ));
@@ -114,9 +114,9 @@ final class WP_Route
     // -----------------------------------------------------
     private function addRoute($method, $route, $callable, $matchParam = false)
     {
-        $this->routes[$method][] = (object) [
-            'route' 	=>  ltrim($route, '/'),
-            'callable'  =>  $callable,
+        $this->routes[$method][] = (object)[
+            'route' => ltrim($route, '/'),
+            'callable' => $callable,
             'matchParam' => $matchParam,
         ];
     }
@@ -124,7 +124,7 @@ final class WP_Route
     private function hook()
     {
         if (!$this->hooked) {
-            add_filter('init', array(__CLASS__, 'onInit'), 1, 0);
+            add_filter('init', array(__class__, 'onInit'), 1, 0);
             $this->hooked = true;
         }
     }
@@ -137,7 +137,7 @@ final class WP_Route
 
     private function getPathVariables($route)
     {
-        $tokenizedRoute		 = $this->tokenize($route);
+        $tokenizedRoute = $this->tokenize($route);
         $tokenizedRequestURI = $this->tokenize($this->requestURI());
         preg_match_all(self::PATH_VAR_REGEX, $route, $matches);
 
@@ -170,15 +170,19 @@ final class WP_Route
 
 
     public function requestURI($withParam = false)
-    {
-	// TODO maybe add static vars here. but will need to null them with reflection for testing
+    {	
+        // TODO maybe add static vars here. but will need to null them with reflection for testing
         $uri = ltrim($_SERVER["REQUEST_URI"], '/');
 
         if ($withParam) {
             return $uri;
         }
-        
-	return parse_url($uri)['path'];
+
+        $pUrl = parse_url($uri);
+
+        if ($pUrl === false) return "";
+
+        return $pUrl['path'] ?? "";
     }
 
     public function getMethod()
@@ -224,8 +228,8 @@ final class WP_Route
         if (reset($route) != reset($path)) return false;
 
 
-        ctn:
-        array_shift($route);
+        ctn :
+            array_shift($route);
         array_shift($path);
         return $this->isMatch($route, $path);
     }
@@ -241,8 +245,8 @@ final class WP_Route
             $turi = $this->tokenize($uri);
             $troute = $this->tokenize($r->route);
             if ($this->isMatch($troute, $turi)) {
-               $route = $r;
-               break;
+                $route = $r;
+                break;
             }
         }
 
