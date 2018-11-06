@@ -90,11 +90,11 @@ final class WP_Route
 
         $r = self::instance();
         foreach ($methods as $method) {
-            if (!in_array(strtoupper($method), array_keys($this->routes))) {
+            if (!in_array(strtoupper($method), array_keys($r->routes))) {
                 throw new Exception("Unknown method {$method}");
             }
 
-            $r->addRoute(strtoupper($method), $route, $callable, $matchPara);
+            $r->addRoute(strtoupper($method), $route, $callable, $matchParam);
         }
     }
 
