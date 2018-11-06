@@ -35,7 +35,7 @@ final class WP_Route
     {
 
         if (self::$instance === null) {
-            self::$instance = new Self();
+            self::$instance = new self();
             self::$instance->hook();
         }
 
@@ -48,37 +48,37 @@ final class WP_Route
     // -----------------------------------------------------
     public static function any($route, $callable, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('ANY', $route, $callable, $matchParam);
     }
 
     public static function get($route, $callable, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('GET', $route, $callable, $matchParam);
     }
 
     public static function post($route, $callable, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('POST', $route, $callable, $matchParam);
     }
 
     public static function head($route, $callable, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('HEAD', $route, $callable, $matchParam);
     }
 
     public static function put($route, $callable, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('PUT', $route, $callable, $matchParam);
     }
 
     public static function delete($route, $callable, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('DELETE', $route, $callable, $matchParam);
     }
 
@@ -88,7 +88,7 @@ final class WP_Route
             throw new Exception("\$methods must be an array");
         }
 
-        $r = Self::instance();
+        $r = self::instance();
         foreach ($methods as $method) {
             if (!in_array(strtoupper($method), array_keys($this->routes))) {
                 throw new Exception("Unknown method {$method}");
@@ -100,7 +100,7 @@ final class WP_Route
 
     public static function redirect($route, $redirect, $code = 301, $matchParam = false)
     {
-        $r = Self::instance();
+        $r = self::instance();
         $r->addRoute('ANY', $route, $redirect, array(
             'code' => $code,
             'redirect' => $redirect,
@@ -131,7 +131,7 @@ final class WP_Route
 
     public static function onInit()
     {
-        $r = Self::instance();
+        $r = self::instance();
         return $r->handle();
     }
 
@@ -159,7 +159,7 @@ final class WP_Route
     // -----------------------------------------------------
     public static function routes()
     {
-        $r = Self::instance();
+        $r = self::instance();
         return $r->routes;
     }
 
