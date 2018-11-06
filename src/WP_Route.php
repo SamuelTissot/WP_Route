@@ -85,13 +85,13 @@ final class WP_Route
     public static function match($methods, $route, $callable, $matchParam = false)
     {
         if (!is_array($methods)) {
-            throw new Exception("\$methods must be an array");
+            throw new \Exception("\$methods must be an array");
         }
 
         $r = self::instance();
         foreach ($methods as $method) {
             if (!in_array(strtoupper($method), array_keys($r->routes))) {
-                throw new Exception("Unknown method {$method}");
+                throw new \Exception("Unknown method {$method}");
             }
 
             $r->addRoute(strtoupper($method), $route, $callable, $matchParam);
@@ -252,7 +252,7 @@ final class WP_Route
 
         // return if no route found
         if (empty($route)) {
-            return;
+            return null;
         }
 
         if (isset($route->callable) && is_callable($route->callable)) {
