@@ -17,6 +17,9 @@ final class WP_Route
     const PATH_VAR_REGEX = '/\{\s*.+?\s*\}/';
     private static $instance = null;
     private $hooked = false;
+    private $globalArgs = [];
+
+
     private $routes = array(
         'ANY' => array(),
         'GET' => array(),
@@ -46,43 +49,43 @@ final class WP_Route
     // -----------------------------------------------------
     // CREATE ROUTE METHODS
     // -----------------------------------------------------
-    public static function any($route, $callable, $matchParam = false)
+    public static function any($route, $callable, $args = [])
     {
         $r = self::instance();
-        $r->addRoute('ANY', $route, $callable, $matchParam);
+        $r->addRoute('ANY', $route, $callable, $args);
     }
 
-    public static function get($route, $callable, $matchParam = false)
+    public static function get($route, $callable, $args = [])
     {
         $r = self::instance();
-        $r->addRoute('GET', $route, $callable, $matchParam);
+        $r->addRoute('GET', $route, $callable, $args);
     }
 
-    public static function post($route, $callable, $matchParam = false)
+    public static function post($route, $callable, $args = [])
     {
         $r = self::instance();
-        $r->addRoute('POST', $route, $callable, $matchParam);
+        $r->addRoute('POST', $route, $callable, $args);
     }
 
-    public static function head($route, $callable, $matchParam = false)
+    public static function head($route, $callable, $args = [])
     {
         $r = self::instance();
-        $r->addRoute('HEAD', $route, $callable, $matchParam);
+        $r->addRoute('HEAD', $route, $callable, $args);
     }
 
-    public static function put($route, $callable, $matchParam = false)
+    public static function put($route, $callable, $args = [])
     {
         $r = self::instance();
-        $r->addRoute('PUT', $route, $callable, $matchParam);
+        $r->addRoute('PUT', $route, $callable, $args);
     }
 
-    public static function delete($route, $callable, $matchParam = false)
+    public static function delete($route, $callable, $args = [])
     {
         $r = self::instance();
-        $r->addRoute('DELETE', $route, $callable, $matchParam);
+        $r->addRoute('DELETE', $route, $callable, $args);
     }
 
-    public static function match($methods, $route, $callable, $matchParam = false)
+    public static function match($methods, $route, $callable, $args = [])
     {
         if (!is_array($methods)) {
             throw new \Exception("\$methods must be an array");
@@ -94,17 +97,17 @@ final class WP_Route
                 throw new \Exception("Unknown method {$method}");
             }
 
-            $r->addRoute(strtoupper($method), $route, $callable, $matchParam);
+            $r->addRoute(strtoupper($method), $route, $callable, $args);
         }
     }
 
-    public static function redirect($route, $redirect, $code = 301, $matchParam = false)
+    public static function redirect($route, $redirect, $code = 301, $args = [])
     {
         $r = self::instance();
         $r->addRoute('ANY', $route, $redirect, array(
             'code' => $code,
             'redirect' => $redirect,
-            'matchParam' => $matchParam,
+            'args' => $args,
         ));
     }
 
@@ -112,12 +115,21 @@ final class WP_Route
     // -----------------------------------------------------
     // INTERNAL UTILITY METHODS
     // -----------------------------------------------------
-    private function addRoute($method, $route, $callable, $matchParam = false)
+
+    /**
+     * @param array $globalArgs
+     */
+    public function setGlobalArgs(array $globalArgs)
+    {
+        $this->globalArgs = $globalArgs;
+    }
+
+    private function addRoute($method, $route, $callable, $args = [])
     {
         $this->routes[$method][] = (object)[
             'route' => ltrim($route, '/'),
             'callable' => $callable,
-            'matchParam' => $matchParam,
+            'args' => array_merge($args, $this->globalArgs),
         ];
     }
 
@@ -163,20 +175,11 @@ final class WP_Route
         return $r->routes;
     }
 
-    public function tokenize($url)
-    {
-        return array_filter(explode('/', ltrim($url, '/')));
-    }
 
-
-    public function requestURI($withParam = false)
+    public function requestURI()
     {
         // TODO maybe add static vars here. but will need to null them with reflection for testing
         $uri = ltrim($_SERVER["REQUEST_URI"], '/');
-
-        if ($withParam) {
-            return $uri;
-        }
 
         $pUrl = parse_url($uri);
 
@@ -192,18 +195,57 @@ final class WP_Route
 
     private function getRequest($route)
     {
-        $params = array_map(
-            function ($value) {
-                return filter_var($value, FILTER_SANITIZE_STRING, ['flags' => FILTER_FLAG_STRIP_BACKTICK]);
-            },
-            $_GET
-        );
+        $params = $this->getParams();
 
         return new Request(
             $this->getMethod(),
             $this->requestURI(),
             $params,
             $this->getPathVariables($route)
+        );
+    }
+
+    private function handle()
+    {
+        $method = $this->getMethod();
+        $routes = array_merge($this->routes[$method], $this->routes['ANY']);
+
+        $route = [];
+        foreach ($routes as $r) {
+            $uri = $this->requestURI();
+            $turi = $this->tokenize($uri . $this->getCleanParams($r->args));
+            $troute = $this->tokenize($r->route . $this->getMatchParamQuery($r->args));
+            if ($this->isMatch($troute, $turi)) {
+                $route = $r;
+                break;
+            }
+        }
+
+        // return if no route found
+        if (empty($route)) {
+            return null;
+        }
+
+        if (isset($route->callable) && is_callable($route->callable)) {
+            return call_user_func($route->callable, $this->getRequest($route->route));
+        }
+
+        if (isset($routes->redirect)) {
+            $redirect = $routes[0]->redirect;
+            header("Location: {$redirect}", true, $routes[0]->code);
+            die(0);
+        }
+
+        throw new \Exception("route not callable");
+    }
+
+    private function getParams()
+    {
+        return array_map(
+            function ($value) {
+                return filter_var($value, FILTER_SANITIZE_STRING, ['flags' => FILTER_FLAG_STRIP_BACKTICK]);
+            },
+            $_GET
         );
     }
 
@@ -234,38 +276,67 @@ final class WP_Route
         return $this->isMatch($route, $path);
     }
 
-    public function handle()
+    /**
+     * only keep the parameters we want to match
+     * @param $args
+     * @return string
+     */
+    private function getCleanParams(array $args)
     {
-        $method = $this->getMethod();
-        $routes = array_merge($this->routes[$method], $this->routes['ANY']);
+        $params = [];
 
-        $route = [];
-        foreach ($routes as $r) {
-            $uri = $this->requestURI($r->matchParam);
-            $turi = $this->tokenize($uri);
-            $troute = $this->tokenize($r->route);
-            if ($this->isMatch($troute, $turi)) {
-                $route = $r;
-                break;
+        if (!empty($args)) {
+            $params = $this->getParams();
+
+            // only  keep the param that we want to match
+            if (isset($args['match']) && $args['match'] != "*") {
+                $params = array_diff_key($params, array_flip($args['match']));
+            }
+
+            // remove unwanted params
+            if (isset($args['do_not_match']) && !empty($args['do_not_match'])) {
+                $params = array_intersect_key($params, array_flip($args['do_not_match']));
+            }
+        }
+        return $this->builQueryString($params);
+    }
+
+    private function getMatchParamQuery(array $args)
+    {
+        if (empty($args)) {
+            return '';
+        }
+
+        $params = $this->getParams();
+
+        // keep the ones we care about
+        if (isset($args['match']) && !empty($args['match'])) {
+            $params = array_intersect_key($params, array_flip($args['match']));
+        }
+
+        // remove unwanted params
+        if (isset($args['do_not_match'])) {
+            if (empty($args['do_not_match'])) {
+                $params = [];
+            } else {
+                $params = array_diff_key($params, array_flip($args['do_not_match']));
             }
         }
 
-        // return if no route found
-        if (empty($route)) {
-            return null;
-        }
 
-        if (isset($route->callable) && is_callable($route->callable)) {
-            return call_user_func($route->callable, $this->getRequest($route->route));
-        }
+        return $this->builQueryString($params);
 
-        if (isset($routes->redirect)) {
-            $redirect = $routes[0]->redirect;
-            header("Location: {$redirect}", true, $routes[0]->code);
-            die(0);
-        }
+    }
 
-        throw new \Exception("route not callable");
+    private function builQueryString(array $params)
+    {
+        $q = http_build_query($params, "&");
+        return $q == '' ? $q : '?' . $q;
+    }
+
+    private function tokenize($url)
+    {
+        return array_filter(explode('/', ltrim($url, '/')));
     }
 
     public function __destruct()
