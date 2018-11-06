@@ -170,7 +170,7 @@ final class WP_Route
 
 
     public function requestURI($withParam = false)
-    {	
+    {
         // TODO maybe add static vars here. but will need to null them with reflection for testing
         $uri = ltrim($_SERVER["REQUEST_URI"], '/');
 
@@ -229,7 +229,7 @@ final class WP_Route
 
 
         ctn :
-            array_shift($route);
+        array_shift($route);
         array_shift($path);
         return $this->isMatch($route, $path);
     }
