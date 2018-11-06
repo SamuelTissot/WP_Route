@@ -2,3 +2,5 @@
 composer.lock
 tags
 .php_cs.cache
+
+.idea
