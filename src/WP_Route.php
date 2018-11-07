@@ -12,14 +12,16 @@
 
 namespace samueltissot\WP_Route;
 
+/**
+ * Class WP_Route
+ * @package samueltissot\WP_Route
+ */
 final class WP_Route
 {
     const PATH_VAR_REGEX = '/\{\s*.+?\s*\}/';
     private static $instance = null;
     private $hooked = false;
     private $globalArgs = [];
-
-
     private $routes = array(
         'ANY' => array(),
         'GET' => array(),
@@ -29,11 +31,15 @@ final class WP_Route
         'DELETE' => array(),
     );
 
-    // make sure no one intanciate it
+    // make sure no one instantiate it
     private function __construct()
     {
     }
 
+    /**
+     * return the WP_Route singleton instance
+     * @return WP_Route|null
+     */
     public static function instance()
     {
 
@@ -49,42 +55,87 @@ final class WP_Route
     // -----------------------------------------------------
     // CREATE ROUTE METHODS
     // -----------------------------------------------------
+
+    /**
+     * Register a route for any method, GET, POST, HEAD ....
+     * @param $route
+     * @param $callable
+     * @param array $args
+     */
     public static function any($route, $callable, $args = [])
     {
         $r = self::instance();
         $r->addRoute('ANY', $route, $callable, $args);
     }
 
+    /**
+     * Register a route for the GET method
+     * @param $route
+     * @param $callable
+     * @param array $args
+     */
     public static function get($route, $callable, $args = [])
     {
         $r = self::instance();
         $r->addRoute('GET', $route, $callable, $args);
     }
 
+    /**
+     * Register a route for POST method
+     * @param $route
+     * @param $callable
+     * @param array $args
+     */
     public static function post($route, $callable, $args = [])
     {
         $r = self::instance();
         $r->addRoute('POST', $route, $callable, $args);
     }
 
+    /**
+     * Register a route for HEAD method
+     * @param $route
+     * @param $callable
+     * @param array $args
+     */
     public static function head($route, $callable, $args = [])
     {
         $r = self::instance();
         $r->addRoute('HEAD', $route, $callable, $args);
     }
 
+    /**
+     * Register a route for PUT method
+     * @param $route
+     * @param $callable
+     * @param array $args
+     */
     public static function put($route, $callable, $args = [])
     {
         $r = self::instance();
         $r->addRoute('PUT', $route, $callable, $args);
     }
 
+    /**
+     * Register a route for DELETE method
+     * @param $route
+     * @param $callable
+     * @param array $args
+     */
     public static function delete($route, $callable, $args = [])
     {
         $r = self::instance();
         $r->addRoute('DELETE', $route, $callable, $args);
     }
 
+    /**
+     * Register a route for [METHOD-1, METHOD-2, ...] method
+     * @param $methods
+     * @param $route
+     * @param $callable
+     * @param array $args
+     * @throws \Exception
+     */
     public static function match($methods, $route, $callable, $args = [])
     {
         if (!is_array($methods)) {
@@ -101,6 +152,13 @@ final class WP_Route
         }
     }
 
+    /**
+     * Register a redirect for the url
+     * @param $route
+     * @param $redirect
+     * @param int $code
+     * @param array $args
+     */
     public static function redirect($route, $redirect, $code = 301, $args = [])
     {
         $r = self::instance();
@@ -111,10 +169,44 @@ final class WP_Route
         ));
     }
 
+    // -----------------------------------------------------
+    // GENERAL UTILITY METHODS
+    // -----------------------------------------------------
 
-    // -----------------------------------------------------
-    // INTERNAL UTILITY METHODS
-    // -----------------------------------------------------
+    /**
+     * Returns an array of all currently registers routes
+     * @return array
+     */
+    public static function routes()
+    {
+        $r = self::instance();
+        return $r->routes;
+    }
+
+    /**
+     * Return the path of the current URI
+     * @return string
+     */
+    public function requestURI()
+    {
+        // TODO maybe add static vars here. but will need to null them with reflection for testing
+        $uri = ltrim($_SERVER["REQUEST_URI"], '/');
+
+        $pUrl = parse_url($uri);
+
+        if ($pUrl === false) return "";
+
+        return $pUrl['path'] ?? "";
+    }
+
+    /**
+     * return the method of the current request
+     * @return string
+     */
+    public function getMethod()
+    {
+        return strtoupper($_SERVER['REQUEST_METHOD']);
+    }
 
     /**
      * @param array $globalArgs
@@ -122,6 +214,23 @@ final class WP_Route
     public function setGlobalArgs(array $globalArgs)
     {
         $this->globalArgs = $globalArgs;
+    }
+
+
+    // -----------------------------------------------------
+    // INTERNAL METHODS
+    // -----------------------------------------------------
+
+    /**
+     * needs to be public to work with the wp-action
+     * this function should not be called
+     * @return mixed|null
+     * @throws \Exception
+     */
+    public static function onInit()
+    {
+        $r = self::instance();
+        return $r->handle();
     }
 
     private function addRoute($method, $route, $callable, $args = [])
@@ -141,12 +250,6 @@ final class WP_Route
         }
     }
 
-    public static function onInit()
-    {
-        $r = self::instance();
-        return $r->handle();
-    }
-
     private function getPathVariables($route)
     {
         $tokenizedRoute = $this->tokenize($route);
@@ -163,34 +266,6 @@ final class WP_Route
         }
 
         return $return;
-    }
-
-
-    // -----------------------------------------------------
-    // GENERAL UTILITY METHODS
-    // -----------------------------------------------------
-    public static function routes()
-    {
-        $r = self::instance();
-        return $r->routes;
-    }
-
-
-    public function requestURI()
-    {
-        // TODO maybe add static vars here. but will need to null them with reflection for testing
-        $uri = ltrim($_SERVER["REQUEST_URI"], '/');
-
-        $pUrl = parse_url($uri);
-
-        if ($pUrl === false) return "";
-
-        return $pUrl['path'] ?? "";
-    }
-
-    public function getMethod()
-    {
-        return strtoupper($_SERVER['REQUEST_METHOD']);
     }
 
     private function getRequest($route)
