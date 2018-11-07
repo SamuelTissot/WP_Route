@@ -26,7 +26,10 @@ WP_Route::patch('flights/{flight}', array($object, 'method'));
 WP_Route::match(['get', 'post'],    'flights/{flight}/confirm', 'confirmFlight');
 
 // if you want to take into account the parameters when doing a path match 
-WP_Route::get('/flights/', 'listFlights', true);
+WP_Route::get('/flights/', 'listFlights', ["match" => "*"]);
+
+// if you want to match one or more parameters
+WP_Route::get('/flights/', 'listFlights', ["match" => ['param2', 'param2', ...]]);
 
 // redirect
 WP_Route::redirect('open-google', 'https://google.com', 301);
@@ -38,6 +41,16 @@ WP_Route::get('flights/{flight}', function singleFlight(RequestInterface $req) {
 
 ```
 
+#### the arguments list
+```php
+
+[
+   'match' => [ [, parameters [, parameter2] ... ]],
+   'do_not_match' => [ [, parameter, [parameter2] ... ]],
+]
+```
+**NOTE:** an empty array means : apply to all
+
 # Installation
 
 Require WP_Route with composer
@@ -48,7 +61,7 @@ $ composer require samueltissot/wp_route
 
 
 # All Callback must accept a variable of type `RequestInterface`
-a request oject is passed to the callable method
+a request object is passed to the callable method
 
 **note:** it is in the plans to be able to provide your custom RequestInterface class (PR accepted)
 
