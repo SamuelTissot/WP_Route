@@ -19,9 +19,16 @@ namespace samueltissot\WP_Route;
 final class WP_Route
 {
     const PATH_VAR_REGEX = '/\{\s*.+?\s*\}/';
+    private static $rParams = null;
+
     private static $instance = null;
     private $hooked = false;
-    private $globalArgs = [];
+    private $args = [
+        "parameters" => [
+            "match" => [],
+            "no_match" => [],
+        ]
+    ];
     private $routes = array(
         'ANY' => array(),
         'GET' => array(),
@@ -209,11 +216,11 @@ final class WP_Route
     }
 
     /**
-     * @param array $globalArgs
+     * @param array $args
      */
-    public function setGlobalArgs(array $globalArgs)
+    public function setArgs(array $args)
     {
-        $this->globalArgs = $globalArgs;
+        $this->args = $args;
     }
 
 
@@ -238,7 +245,7 @@ final class WP_Route
         $this->routes[$method][] = (object)[
             'route' => ltrim($route, '/'),
             'callable' => $callable,
-            'args' => array_merge($args, $this->globalArgs),
+            'args' => array_merge($this->args, $args),
         ];
     }
 
@@ -285,12 +292,10 @@ final class WP_Route
         $method = $this->getMethod();
         $routes = array_merge($this->routes[$method], $this->routes['ANY']);
 
-        $route = [];
+        $route = null;
+        $uri = $this->requestURI();
         foreach ($routes as $r) {
-            $uri = $this->requestURI();
-            $turi = $this->tokenize($uri . $this->getCleanParams($r->args));
-            $troute = $this->tokenize($r->route . $this->getMatchParamQuery($r->args));
-            if ($this->isMatch($troute, $turi)) {
+            if ($this->isMatch($r, $uri)) {
                 $route = $r;
                 break;
             }
@@ -314,17 +319,20 @@ final class WP_Route
         throw new \Exception("route not callable");
     }
 
-    private function getParams()
+
+    private function isMatch($r, $uri)
     {
-        return array_map(
-            function ($value) {
-                return filter_var($value, FILTER_SANITIZE_STRING, ['flags' => FILTER_FLAG_STRIP_BACKTICK]);
-            },
-            $_GET
-        );
+        // first check if the path match, if not return
+        $turi = $this->tokenize($uri);
+        $troute = $this->tokenize($r->route);
+        $match = $this->matchPath($troute, $turi);
+        if (!$match) return $match;
+
+        // match params
+        return $this->matchParams($r);
     }
 
-    private function isMatch(array $route, array $path)
+    private function matchPath(array $route, array $path)
     {
         $rc = count($route);
         $rp = count($path);
@@ -348,65 +356,7 @@ final class WP_Route
         ctn :
         array_shift($route);
         array_shift($path);
-        return $this->isMatch($route, $path);
-    }
-
-    /**
-     * only keep the parameters we want to match
-     * @param $args
-     * @return string
-     */
-    private function getCleanParams(array $args)
-    {
-        $params = [];
-
-        if (!empty($args)) {
-            $params = $this->getParams();
-
-            // only  keep the param that we want to match
-            if (isset($args['match']) && $args['match'] != "*") {
-                $params = array_diff_key($params, array_flip($args['match']));
-            }
-
-            // remove unwanted params
-            if (isset($args['do_not_match']) && !empty($args['do_not_match'])) {
-                $params = array_intersect_key($params, array_flip($args['do_not_match']));
-            }
-        }
-        return $this->builQueryString($params);
-    }
-
-    private function getMatchParamQuery(array $args)
-    {
-        if (empty($args)) {
-            return '';
-        }
-
-        $params = $this->getParams();
-
-        // keep the ones we care about
-        if (isset($args['match']) && !empty($args['match'])) {
-            $params = array_intersect_key($params, array_flip($args['match']));
-        }
-
-        // remove unwanted params
-        if (isset($args['do_not_match'])) {
-            if (empty($args['do_not_match'])) {
-                $params = [];
-            } else {
-                $params = array_diff_key($params, array_flip($args['do_not_match']));
-            }
-        }
-
-
-        return $this->builQueryString($params);
-
-    }
-
-    private function builQueryString(array $params)
-    {
-        $q = http_build_query($params, "&");
-        return $q == '' ? $q : '?' . $q;
+        return $this->matchPath($route, $path);
     }
 
     private function tokenize($url)
@@ -414,8 +364,58 @@ final class WP_Route
         return array_filter(explode('/', ltrim($url, '/')));
     }
 
+    private function matchParams($r)
+    {
+        $p = $this->getParams();
+        $args = $r->args['parameters'];
+
+        if (isset($args['match']) && !empty($args['match'])) {
+            if (is_array($args['match'])) {
+                foreach ($args['match'] as $key) {
+                    if (!array_key_exists($key, $p)) {
+                        return false;
+                    }
+                }
+            } elseif (!array_key_exists($args['match'], $p)) {
+                return false;
+            }
+
+        }
+
+        if (isset($args['no_match']) && !empty($args['no_match'])) {
+            if (is_array($args['no_match'])) {
+                foreach ($args['no_match'] as $key) {
+                    if (array_key_exists($key, $p)) {
+                        return false;
+                    }
+                }
+            } else {
+                return !array_key_exists($args['no_match'], $p);
+            }
+
+        }
+
+        return true;
+    }
+
+    private function getParams()
+    {
+
+        if (!isset(self::$rParams)) {
+            self::$rParams = array_map(
+                function ($value) {
+                    return filter_var($value, FILTER_SANITIZE_STRING, ['flags' => FILTER_FLAG_STRIP_BACKTICK]);
+                },
+                $_GET
+            );
+        }
+
+        return self::$rParams;
+    }
+
     public function __destruct()
     {
+        self::$rParams = null;
         self::$instance = null;
     }
 }

@@ -2,7 +2,7 @@
 
 namespace {
     global $filters;
-    $filters;
+    $filters = null;
 
     function add_filter(string $tag, $function_to_add, int $priority = 10, int $accepted_args = 1)
     {
@@ -68,10 +68,10 @@ namespace samueltissot\WP_Route_Tests {
         /** @test */
         public function request_object_has_parameter()
         {
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar";
             $_GET = [
                 'foo' => 'bar',
             ];
+            $_SERVER["REQUEST_URI"] = "/param/?" . http_build_query($_GET, '&');
             $_SERVER["REQUEST_METHOD"] = "get";
 
             WP_Route::get("/param/", function (RequestInterface $request) {
@@ -103,127 +103,127 @@ namespace samueltissot\WP_Route_Tests {
             $this->assertEquals("yeah", $result);
         }
 
-        /** @test */
-        public function match_all_param()
-        {
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar&match=this";
-            $_GET = [
-                'foo' => 'bar',
-                'm' => 'this',
-            ];
-            $_SERVER["REQUEST_METHOD"] = "get";
 
-            WP_Route::get("/param/", function (RequestInterface $request) {
-                return $request->parameter("m");
-            }, ['match' => []]);
-
-            $result = \exec_filter();
-            $this->assertEquals("this", $result);
-        }
+        // -----------------------------------------------------
+        // TEST WITH Params
+        // -----------------------------------------------------
 
         /** @test */
-        public function no_matching_param()
+        public function no_match_on_parameter()
         {
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar";
             $_GET = [
                 'foo' => 'bar',
             ];
+            $_SERVER["REQUEST_URI"] = "/param/?" . http_build_query($_GET, '&');
             $_SERVER["REQUEST_METHOD"] = "get";
 
-            WP_Route::get("/param/", function (RequestInterface $request) {
-                return "hello";
-            }, ['match' => [
-                'm',
-            ]]);
-
-            $result = \exec_filter();
-            $this->assertNotEquals("hello", $result);
-        }
-
-        /** @test */
-        public function do_not_match_with_extra_params()
-        {
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar&match=this";
-            $_GET = [
-                'foo' => 'bar',
-            ];
-            $_SERVER["REQUEST_METHOD"] = "get";
-
-            WP_Route::get("/param/", function (RequestInterface $request) {
-                return $request->parameter("foo");
-            }, ['do_not_match' => [
-                'foo'
-            ]]);
-
-            $result = \exec_filter();
-            $this->assertNotEquals("bar", $result);
-        }
-
-        /** @test */
-        public function match_on_one_param_but_not_on_another()
-        {
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar&zoo=lion";
-            $_GET = [
-                'preview' => 'test',
-                'zoo' => 'lion'
-            ];
-            $_SERVER["REQUEST_METHOD"] = "get";
-
-            WP_Route::get("/param/", function (RequestInterface $request) {
-                return $request->parameter("foo");
-            }, [
-                'match' => [
-                    'preview'
-                ],
-                'do_not_match' => [
-                    'zoo'
+            $args = [
+                'parameters' => [
+                    'no_match' => 'foo',
                 ]
-            ]);
+            ];
+
+            WP_Route::get("/param/", function (RequestInterface $request) {
+                return $request->parameter("foo");
+            }, $args);
 
             $result = \exec_filter();
             $this->assertNotEquals("bar", $result);
         }
 
         /** @test */
-        public function honnor_global_args()
+        public function match_if_no_match_parameter_is_not_present()
         {
-            $route = WP_Route::instance();
-            $route->setGlobalArgs([
-                'do_not_match' => ['q'],
-            ]);
+            $_GET = [
+                'box' => 'bee',
+            ];
+            $_SERVER["REQUEST_URI"] = "/param/?" . http_build_query($_GET, '&');
+            $_SERVER["REQUEST_METHOD"] = "get";
 
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar&q=page";
+            $args = [
+                'parameters' => [
+                    'no_match' => 'foo',
+                ]
+            ];
+
+            WP_Route::get("/param/", function (RequestInterface $request) {
+                return $request->parameter("box");
+            }, $args);
+
+            $result = \exec_filter();
+            $this->assertEquals("bee", $result);
+        }
+
+        /** @test */
+        public function must_require_param_to_match()
+        {
             $_GET = [
                 'foo' => 'bar',
-                'q' => 'page'
             ];
+            $_SERVER["REQUEST_URI"] = "/param/?" . http_build_query($_GET, '&');
             $_SERVER["REQUEST_METHOD"] = "get";
+
+            $args = [
+                'parameters' => [
+                    'match' => 'foo',
+                ]
+            ];
 
             WP_Route::get("/param/", function (RequestInterface $request) {
                 return $request->parameter("foo");
-            });
+            }, $args);
+
+            $result = \exec_filter();
+            $this->assertEquals("bar", $result);
+        }
+
+        /** @test */
+        public function if_param_is_not_present_do_not_match()
+        {
+            $_GET = [
+                'bar' => 'foo',
+            ];
+            $_SERVER["REQUEST_URI"] = "/param/?" . http_build_query($_GET, '&');
+            $_SERVER["REQUEST_METHOD"] = "get";
+
+            $args = [
+                'parameters' => [
+                    'match' => 'foo',
+                ]
+            ];
+
+            WP_Route::get("/param/", function (RequestInterface $request) {
+                return $request->parameter("foo");
+            }, $args);
 
             $result = \exec_filter();
             $this->assertNotEquals("bar", $result);
         }
 
         /** @test */
-        public function do_not_match_all()
+        public function match_param_present_but_a_no_match_also__dont_match()
         {
-            $_SERVER["REQUEST_URI"] = "/param/?foo=bar&q=page";
             $_GET = [
-                'foo' => 'bar',
-                'q' => 'page'
+                'bar' => 'foo',
+                'disco' => 'queen',
             ];
+            $_SERVER["REQUEST_URI"] = "/param/?" . http_build_query($_GET, '&');
             $_SERVER["REQUEST_METHOD"] = "get";
 
+            $args = [
+                'parameters' => [
+                    'match' => ['foo'],
+                    'no_match' => ['disco'],
+                ]
+            ];
+
             WP_Route::get("/param/", function (RequestInterface $request) {
-                return $request->parameter("foo");
-            }, ['do_not_match' => []]);
+                return $request->parameter("bar");
+            }, $args);
 
             $result = \exec_filter();
-            $this->assertNotEquals("bar", $result);
+            $this->assertNotEquals("foo", $result);
         }
+
     }
-
 }
