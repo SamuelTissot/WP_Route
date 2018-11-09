@@ -43,10 +43,11 @@ WP_Route::get('flights/{flight}', function singleFlight(RequestInterface $req) {
 
 #### the arguments list
 ```php
-
 [
-   'match' => [ [, parameters [, parameter2] ... ]],
-   'do_not_match' => [ [, parameter, [parameter2] ... ]],
+    "parameters" => [
+        'match' => [[parameter1] [, parameter2 [, ...]]],
+        'no_match' => [[parameter1] [, parameter2 [, ...]]],
+    ],
 ]
 ```
 **NOTE:** an empty array means : apply to all
