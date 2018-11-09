@@ -26,9 +26,7 @@ jobs:
             php composer.phar --version
       - run:
           name: Install project dependencies
-          command: |
-            rm composer.lock
-            php ../composer.phar install --dev
+          command: php composer.phar install
       - run:
           name: Run Unit tests
           command: vendor/bin/phpunit
